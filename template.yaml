@@ -1,0 +1,78 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: SAM Architecture with API Gateway, SQS, SNS, and Lambdas
+
+Globals:
+  Function:
+    Timeout: 10
+    Runtime: nodejs18.x
+    MemorySize: 128
+
+Resources:
+
+  # API Gateway and Producer Lambda with multiple endpoints
+  ProducerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: producer.handler
+      Events:
+        SubmitApi:
+          Type: Api
+          Properties:
+            Path: /submit
+            Method: POST
+        StatusApi:
+          Type: Api
+          Properties:
+            Path: /status
+            Method: GET
+        UpdateApi:
+          Type: Api
+          Properties:
+            Path: /update
+            Method: PUT
+      Environment:
+        Variables:
+          QUEUE_URL: !GetAtt MyQueue.QueueUrl
+      Policies:
+        - SQSSendMessagePolicy:
+            QueueName: !GetAtt MyQueue.QueueName
+
+  # SQS Queue
+  MyQueueo:
+    Type: AWS::SQS::Queue
+
+  # SQS Queue 2
+  # DelfrinandoQueue:
+  #   Type: AWS::SQS::Queue
+  #   Properties:
+  #     QueueName: "delfrinando"
+
+  # Consumer Lambda triggered by SQS with success destination to SNS
+  ConsumerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: consumer.handler
+      Events:
+        SQSTrigger:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt MyQueue.Arn
+      Environment:
+        Variables:
+          SNS_TOPIC_ARN: !Ref NotificationTopic
+      Policies:
+        - SNSPublishMessagePolicy:
+            TopicName: !GetAtt NotificationTopic.TopicName
+
+  # SNS Topic
+  NotificationTopic:
+    Type: AWS::SNS::Topic
+
+  # SNS Email Subscription
+  EmailSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Protocol: email
+      Endpoint: you@example.com
+      TopicArn: !Ref NotificationTopic
