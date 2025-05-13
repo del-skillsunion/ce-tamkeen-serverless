@@ -39,7 +39,7 @@ Resources:
             QueueName: !GetAtt MyQueue.QueueName
 
   # SQS Queue
-  MyQueueo:
+  MyQueue:
     Type: AWS::SQS::Queue
 
   # SQS Queue 2
